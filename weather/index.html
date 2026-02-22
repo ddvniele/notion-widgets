@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather</title>
+
+    <link rel="stylesheet" href="../theme.css">
+    <style>
+        #widget-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+            font-weight: 500;
+        }
+
+        #current-weather {
+            font-size: min(10vw, 35vh);
+            letter-spacing: -0.03em;
+            line-height: 1;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 3vw;
+            margin-bottom: 4vh;
+        }
+
+        #forecast-container {
+            display: flex;
+            gap: 4vw;
+            justify-content: center;
+        }
+
+        .forecast-day {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5vh;
+        }
+
+        .day-name {
+            font-size: min(2vw, 8vh);
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+
+        .day-symbol {
+            font-size: min(4vw, 12vh);
+        }
+
+        .day-temps {
+            font-size: min(2vw, 8vh);
+            white-space: nowrap;
+        }
+
+        .min-temp {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="widget-container">
+        <div id="current-weather">Loading...</div>
+
+        <div id="forecast-container"></div>
+    </div>
+
+    <script>
+        function getWeatherSymbol(code) {
+            if (code === 0) return "☼";
+            if (code === 1 || code === 2 || code === 3) return "☁";
+            if (code >= 45 && code <= 48) return "≈";
+            if (code >= 51 && code <= 67) return "⛆";
+            if (code >= 71 && code <= 77) return "❄";
+            if (code >= 80 && code <= 82) return "⛆";
+            if (code >= 95 && code <= 99) return "⚡";
+            return "°C";
+        }
+
+        async function fetchWeather() {
+            try {
+                let lat = 0;
+                let lon = 0;
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const customLat = urlParams.get('lat');
+                const customLon = urlParams.get('lon');
+
+                if (customLat && customLon) {
+                    lat = customLat;
+                    lon = customLon;
+                } else {
+                    try {
+                        const geoResponse = await fetch('https://ipapi.co/json/');
+                        const geoData = await geoResponse.json();
+                        if (geoData.latitude && geoData.longitude) {
+                            lat = geoData.latitude;
+                            lon = geoData.longitude;
+                        }
+                    } catch (e) {
+                        console.log("Error fetching location");
+                    }
+                }
+
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                
+                const response = await fetch(weatherUrl);
+                const data = await response.json();
+
+                const currentTemp = Math.round(data.current.temperature_2m);
+                const currentCode = data.current.weather_code;
+                const currentSymbol = getWeatherSymbol(currentCode);
+                document.getElementById('current-weather').textContent = `${currentSymbol} ${currentTemp}°C`;
+
+                const forecastContainer = document.getElementById('forecast-container');
+                forecastContainer.innerHTML = ''
+
+                const daily = data.daily;
+                
+                for (let i = 1; i < 7; i++) {
+                    const [year, month, day] = daily.time[i].split('-');
+                    const date = new Date(year, month - 1, day);
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    const max = Math.round(daily.temperature_2m_max[i]);
+                    const min = Math.round(daily.temperature_2m_min[i]);
+                    const symbol = getWeatherSymbol(daily.weather_code[i]);
+
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'forecast-day';
+                    dayDiv.innerHTML = `
+                        <div class="day-name">${dayName}</div>
+                        <div class="day-symbol">${symbol}</div>
+                        <div class="day-temps">${max}° <span class="min-temp">${min}°</span></div>
+                    `;
+                    forecastContainer.appendChild(dayDiv);
+                }
+
+            } catch (error) {
+                document.getElementById('current-weather').textContent = "Error fetching data";
+            }
+        }
+
+        fetchWeather();
+        setInterval(fetchWeather, 30 * 60 * 1000);
+    </script>
+</body>
+</html>
