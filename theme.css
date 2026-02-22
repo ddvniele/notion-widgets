@@ -5,13 +5,14 @@ body {
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background-color: transparent;
+    background-color: #ffffff;
     overflow: hidden;
     color: #000000;
 }
 
 @media(prefers-color-scheme: dark) {
     body {
+        background-color: #191919;
         color: #ffffff;
     }
 }
